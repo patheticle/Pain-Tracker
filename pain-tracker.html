@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Pain Tracker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Fraunces:wght@600;700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --bg-primary: #0d1117; --bg-secondary: #161b22; --bg-tertiary: #21262d; --bg-card: #1c2128;
+            --border: #30363d; --text-primary: #e6edf3; --text-secondary: #8b949e; --text-muted: #6e7681;
+            --accent: #58a6ff; --accent-subtle: rgba(88, 166, 255, 0.15);
+            --success: #3fb950; --warning: #d29922; --danger: #f85149; --purple: #a371f7;
+        }
+        body { font-family: 'DM Sans', -apple-system, sans-serif; background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; line-height: 1.5; }
+        .container { max-width: 480px; margin: 0 auto; padding: 16px; padding-bottom: 100px; }
+        header { text-align: center; padding: 24px 0 32px; border-bottom: 1px solid var(--border); margin-bottom: 24px; }
+        header h1 { font-family: 'Fraunces', Georgia, serif; font-size: 28px; font-weight: 700; margin-bottom: 4px; background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        header p { color: var(--text-secondary); font-size: 14px; }
+        .sync-status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; margin-top: 8px; padding: 4px 10px; border-radius: 12px; background: var(--bg-secondary); }
+        .sync-dot { width: 8px; height: 8px; border-radius: 50%; }
+        .sync-dot.connected { background: var(--success); }
+        .sync-dot.disconnected { background: var(--danger); }
+        .sync-dot.checking { background: var(--warning); }
+        .nav-tabs { display: flex; gap: 8px; margin-bottom: 24px; background: var(--bg-secondary); padding: 6px; border-radius: 12px; }
+        .nav-tab { flex: 1; padding: 10px 12px; border: none; background: transparent; color: var(--text-secondary); font-family: inherit; font-size: 13px; font-weight: 500; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; }
+        .nav-tab:hover { color: var(--text-primary); background: var(--bg-tertiary); }
+        .nav-tab.active { background: var(--accent-subtle); color: var(--accent); }
+        .section { display: none; }
+        .section.active { display: block; }
+        .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+        .slider-group { margin-bottom: 20px; }
+        .slider-group:last-child { margin-bottom: 0; }
+        .slider-label { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .slider-label span { font-size: 14px; color: var(--text-primary); }
+        .slider-value { font-weight: 600; color: var(--accent); min-width: 20px; text-align: right; }
+        .slider-track { display: flex; gap: 6px; }
+        .slider-btn { flex: 1; height: 44px; border: 2px solid var(--border); background: var(--bg-secondary); color: var(--text-secondary); font-family: inherit; font-size: 14px; font-weight: 500; border-radius: 8px; cursor: pointer; transition: all 0.15s ease; }
+        .slider-btn:hover { border-color: var(--text-muted); background: var(--bg-tertiary); }
+        .slider-btn.selected { border-color: var(--accent); background: var(--accent-subtle); color: var(--accent); }
+        .slider-anchors { display: flex; justify-content: space-between; margin-top: 6px; font-size: 11px; color: var(--text-muted); }
+        .checkbox-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+        .checkbox-item { position: relative; }
+        .checkbox-item input { position: absolute; opacity: 0; pointer-events: none; }
+        .checkbox-item label { display: flex; align-items: center; justify-content: center; padding: 12px 8px; background: var(--bg-secondary); border: 2px solid var(--border); border-radius: 8px; font-size: 13px; color: var(--text-secondary); cursor: pointer; transition: all 0.15s ease; text-align: center; min-height: 48px; }
+        .checkbox-item label:hover { border-color: var(--text-muted); background: var(--bg-tertiary); }
+        .checkbox-item input:checked + label { border-color: var(--accent); background: var(--accent-subtle); color: var(--accent); }
+        .location-grid { display: grid; grid-template-columns: auto 1fr 1fr 1fr; gap: 8px; align-items: center; }
+        .location-label { font-size: 13px; color: var(--text-primary); padding-right: 8px; }
+        .location-header { font-size: 11px; color: var(--text-muted); text-align: center; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+        .location-checkbox { position: relative; }
+        .location-checkbox input { position: absolute; opacity: 0; pointer-events: none; }
+        .location-checkbox label { display: flex; align-items: center; justify-content: center; width: 100%; height: 40px; background: var(--bg-secondary); border: 2px solid var(--border); border-radius: 6px; cursor: pointer; transition: all 0.15s ease; }
+        .location-checkbox label::after { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--border); transition: all 0.15s ease; }
+        .location-checkbox label:hover { border-color: var(--text-muted); }
+        .location-checkbox input:checked + label { border-color: var(--danger); background: rgba(248, 81, 73, 0.15); }
+        .location-checkbox input:checked + label::after { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+        .comments-input { width: 100%; min-height: 80px; padding: 12px; background: var(--bg-secondary); border: 2px solid var(--border); border-radius: 8px; color: var(--text-primary); font-family: inherit; font-size: 14px; resize: vertical; }
+        .comments-input:focus { outline: none; border-color: var(--accent); }
+        .comments-input::placeholder { color: var(--text-muted); }
+        .submit-btn { width: 100%; padding: 16px; background: linear-gradient(135deg, var(--accent) 0%, var(--purple) 100%); border: none; border-radius: 12px; color: white; font-family: inherit; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; margin-top: 8px; }
+        .submit-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(88, 166, 255, 0.3); }
+        .submit-btn:active { transform: translateY(0); }
+        .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        .data-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 20px; }
+        .stat-card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 10px; padding: 16px; text-align: center; }
+        .stat-value { font-family: 'Fraunces', Georgia, serif; font-size: 28px; font-weight: 700; color: var(--accent); }
+        .stat-label { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+        .entries-list { max-height: 400px; overflow-y: auto; }
+        .entry-item { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 10px; }
+        .entry-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .entry-date { font-size: 13px; color: var(--text-muted); }
+        .entry-type { font-size: 11px; padding: 3px 8px; background: var(--bg-tertiary); border-radius: 4px; color: var(--text-secondary); }
+        .entry-pain { display: flex; align-items: center; gap: 8px; }
+        .entry-pain-value { font-family: 'Fraunces', Georgia, serif; font-size: 24px; font-weight: 700; }
+        .entry-pain-label { font-size: 13px; color: var(--text-secondary); }
+        .entry-details { font-size: 12px; color: var(--text-muted); margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+        .pain-low { color: var(--success); }
+        .pain-mid { color: var(--warning); }
+        .pain-high { color: var(--danger); }
+        .section-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; font-weight: 500; }
+        .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--bg-card); border: 1px solid var(--border); padding: 14px 24px; border-radius: 10px; font-size: 14px; font-weight: 500; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4); opacity: 0; transition: all 0.3s ease; z-index: 1000; }
+        .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+        .toast.success { border-color: var(--success); color: var(--success); }
+        .toast.error { border-color: var(--danger); color: var(--danger); }
+        .empty-state { text-align: center; padding: 40px 20px; color: var(--text-muted); }
+        .empty-state svg { width: 48px; height: 48px; margin-bottom: 12px; opacity: 0.5; }
+        @media (max-width: 380px) { .slider-btn { height: 40px; font-size: 13px; } .checkbox-item label { padding: 10px 6px; font-size: 12px; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Pain Tracker</h1>
+            <p id="currentDate"></p>
+            <div class="sync-status">
+                <span class="sync-dot checking" id="syncDot"></span>
+                <span id="syncText">Checking...</span>
+            </div>
+        </header>
+
+        <nav class="nav-tabs">
+            <button class="nav-tab active" data-tab="checkin">Check-in</button>
+            <button class="nav-tab" data-tab="morning">Morning</button>
+            <button class="nav-tab" data-tab="data">Data</button>
+        </nav>
+
+        <!-- Main Check-in Section -->
+        <section id="checkin" class="section active">
+            <form id="mainForm">
+                <div class="card">
+                    <div class="slider-group">
+                        <div class="slider-label"><span>Pain level *</span><span class="slider-value" id="painValue">-</span></div>
+                        <div class="slider-track" data-input="painInput" data-display="painValue">
+                            <button type="button" class="slider-btn" data-value="0">0</button>
+                            <button type="button" class="slider-btn" data-value="1">1</button>
+                            <button type="button" class="slider-btn" data-value="2">2</button>
+                            <button type="button" class="slider-btn" data-value="3">3</button>
+                            <button type="button" class="slider-btn" data-value="4">4</button>
+                            <button type="button" class="slider-btn" data-value="5">5</button>
+                            <button type="button" class="slider-btn" data-value="6">6</button>
+                        </div>
+                        <div class="slider-anchors"><span>None</span><span>Severe</span></div>
+                    </div>
+                    <input type="hidden" name="pain" id="painInput">
+
+                    <div class="slider-group">
+                        <div class="slider-label"><span>Mood *</span><span class="slider-value" id="moodValue">-</span></div>
+                        <div class="slider-track" data-input="moodInput" data-display="moodValue">
+                            <button type="button" class="slider-btn" data-value="0">0</button>
+                            <button type="button" class="slider-btn" data-value="1">1</button>
+                            <button type="button" class="slider-btn" data-value="2">2</button>
+                            <button type="button" class="slider-btn" data-value="3">3</button>
+                            <button type="button" class="slider-btn" data-value="4">4</button>
+                            <button type="button" class="slider-btn" data-value="5">5</button>
+                            <button type="button" class="slider-btn" data-value="6">6</button>
+                        </div>
+                        <div class="slider-anchors"><span>Very low</span><span>Very high</span></div>
+                    </div>
+                    <input type="hidden" name="mood" id="moodInput">
+
+                    <div class="slider-group">
+                        <div class="slider-label"><span>Bloated</span><span class="slider-value" id="bloatedValue">-</span></div>
+                        <div class="slider-track" data-input="bloatedInput" data-display="bloatedValue">
+                            <button type="button" class="slider-btn" data-value="0">0</button>
+                            <button type="button" class="slider-btn" data-value="1">1</button>
+                            <button type="button" class="slider-btn" data-value="2">2</button>
+                            <button type="button" class="slider-btn" data-value="3">3</button>
+                            <button type="button" class="slider-btn" data-value="4">4</button>
+                            <button type="button" class="slider-btn" data-value="5">5</button>
+                            <button type="button" class="slider-btn" data-value="6">6</button>
+                        </div>
+                        <div class="slider-anchors"><span>None</span><span>Severe</span></div>
+                    </div>
+                    <input type="hidden" name="bloated" id="bloatedInput">
+
+                    <div class="slider-group">
+                        <div class="slider-label"><span>Gassy</span><span class="slider-value" id="gassyValue">-</span></div>
+                        <div class="slider-track" data-input="gassyInput" data-display="gassyValue">
+                            <button type="button" class="slider-btn" data-value="0">0</button>
+                            <button type="button" class="slider-btn" data-value="1">1</button>
+                            <button type="button" class="slider-btn" data-value="2">2</button>
+                            <button type="button" class="slider-btn" data-value="3">3</button>
+                            <button type="button" class="slider-btn" data-value="4">4</button>
+                            <button type="button" class="slider-btn" data-value="5">5</button>
+                            <button type="button" class="slider-btn" data-value="6">6</button>
+                        </div>
+                        <div class="slider-anchors"><span>None</span><span>Severe</span></div>
+                    </div>
+                    <input type="hidden" name="gassy" id="gassyInput">
+
+                    <div class="slider-group">
+                        <div class="slider-label"><span>Dyspepsia</span><span class="slider-value" id="dyspepsiaValue">-</span></div>
+                        <div class="slider-track" data-input="dyspepsiaInput" data-display="dyspepsiaValue">
+                            <button type="button" class="slider-btn" data-value="0">0</button>
+                            <button type="button" class="slider-btn" data-value="1">1</button>
+                            <button type="button" class="slider-btn" data-value="2">2</button>
+                            <button type="button" class="slider-btn" data-value="3">3</button>
+                            <button type="button" class="slider-btn" data-value="4">4</button>
+                            <button type="button" class="slider-btn" data-value="5">5</button>
+                            <button type="button" class="slider-btn" data-value="6">6</button>
+                        </div>
+                        <div class="slider-anchors"><span>None</span><span>Severe</span></div>
+                    </div>
+                    <input type="hidden" name="dyspepsia" id="dyspepsiaInput">
+
+                    <div class="slider-group">
+                        <div class="slider-label"><span>Stress</span><span class="slider-value" id="stressValue">-</span></div>
+                        <div class="slider-track" data-input="stressInput" data-display="stressValue">
+                            <button type="button" class="slider-btn" data-value="0">0</button>
+                            <button type="button" class="slider-btn" data-value="1">1</button>
+                            <button type="button" class="slider-btn" data-value="2">2</button>
+                            <button type="button" class="slider-btn" data-value="3">3</button>
+                            <button type="button" class="slider-btn" data-value="4">4</button>
+                            <button type="button" class="slider-btn" data-value="5">5</button>
+                            <button type="button" class="slider-btn" data-value="6">6</button>
+                        </div>
+                        <div class="slider-anchors"><span>None</span><span>Severe</span></div>
+                    </div>
+                    <input type="hidden" name="stress" id="stressInput">
+                </div>
+
+                <div class="card">
+                    <div class="section-label">Pain Location</div>
+                    <div class="location-grid">
+                        <div></div>
+                        <div class="location-header">Left</div>
+                        <div class="location-header">Center</div>
+                        <div class="location-header">Right</div>
+                        <div class="location-label">Head</div>
+                        <div class="location-checkbox"><input type="checkbox" id="loc_head_l"><label for="loc_head_l"></label></div>
+                        <div class="location-checkbox"><input type="checkbox" id="loc_head_c"><label for="loc_head_c"></label></div>
+                        <div class="location-checkbox"><input type="checkbox" id="loc_head_r"><label for="loc_head_r"></label></div>
+                        <div class="location-label">Neck</div>
+                        <div class="location-checkbox"><input type="checkbox" id="loc_neck_l"><label for="loc_neck_l"></label></div>
+                        <div class="location-checkbox"><input type="checkbox" id="loc_neck_c"><label for="loc_neck_c"></label></div>
+                        <div class="location-checkbox"><input type="checkbox" id="loc_neck_r"><label for="loc_neck_r"></label></div>
+                        <div class="location-label">Upper back</div>
+                        <div class="location-checkbox"><input type="checkbox" id="loc_upperback_l"><label for="loc_upperback_l"></label></div>
+                        <div class="location-checkbox"><input type="checkbox" id="loc_upperback_c"><label for="loc_upperback_c"></label></div>
+                        <div class="location-checkbox"><input type="checkbox" id="loc_upperback_r"><label for="loc_upperback_r"></label></div>
+                        <div class="location-label">Lower back</div>
+                        <div class="location-checkbox"><input type="checkbox" id="loc_lowerback_l"><label for="loc_lowerback_l"></label></div>
+                        <div class="location-checkbox"><input type="checkbox" id="loc_lowerback_c"><label for="loc_lowerback_c"></label></div>
+                        <div class="location-checkbox"><input type="checkbox" id="loc_lowerback_r"><label for="loc_lowerback_r"></label></div>
+                        <div class="location-label">Shoulder</div>
+                        <div class="location-checkbox"><input type="checkbox" id="loc_shoulder_l"><label for="loc_shoulder_l"></label></div>
+                        <div class="location-checkbox"><input type="checkbox" id="loc_shoulder_c"><label for="loc_shoulder_c"></label></div>
+                        <div class="location-checkbox"><input type="checkbox" id="loc_shoulder_r"><label for="loc_shoulder_r"></label></div>
+                        <div class="location-label">Hand</div>
+                        <div class="location-checkbox"><input type="checkbox" id="loc_hand_l"><label for="loc_hand_l"></label></div>
+                        <div class="location-checkbox"><input type="checkbox" id="loc_hand_c"><label for="loc_hand_c"></label></div>
+                        <div class="location-checkbox"><input type="checkbox" id="loc_hand_r"><label for="loc_hand_r"></label></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="section-label">Activity (past 3 hours)</div>
+                    <div class="slider-group">
+                        <div class="slider-label"><span>Standing</span><span class="slider-value" id="standingValue">-</span></div>
+                        <div class="slider-track" data-input="standingInput" data-display="standingValue">
+                            <button type="button" class="slider-btn" data-value="0">0</button><button type="button" class="slider-btn" data-value="1">1</button><button type="button" class="slider-btn" data-value="2">2</button><button type="button" class="slider-btn" data-value="3">3</button><button type="button" class="slider-btn" data-value="4">4</button><button type="button" class="slider-btn" data-value="5">5</button><button type="button" class="slider-btn" data-value="6">6</button>
+                        </div>
+                        <div class="slider-anchors"><span>None</span><span>A lot</span></div>
+                    </div>
+                    <input type="hidden" id="standingInput">
+                    <div class="slider-group">
+                        <div class="slider-label"><span>Sitting</span><span class="slider-value" id="sittingValue">-</span></div>
+                        <div class="slider-track" data-input="sittingInput" data-display="sittingValue">
+                            <button type="button" class="slider-btn" data-value="0">0</button><button type="button" class="slider-btn" data-value="1">1</button><button type="button" class="slider-btn" data-value="2">2</button><button type="button" class="slider-btn" data-value="3">3</button><button type="button" class="slider-btn" data-value="4">4</button><button type="button" class="slider-btn" data-value="5">5</button><button type="button" class="slider-btn" data-value="6">6</button>
+                        </div>
+                        <div class="slider-anchors"><span>None</span><span>A lot</span></div>
+                    </div>
+                    <input type="hidden" id="sittingInput">
+                    <div class="slider-group">
+                        <div class="slider-label"><span>Movement</span><span class="slider-value" id="movementValue">-</span></div>
+                        <div class="slider-track" data-input="movementInput" data-display="movementValue">
+                            <button type="button" class="slider-btn" data-value="0">0</button><button type="button" class="slider-btn" data-value="1">1</button><button type="button" class="slider-btn" data-value="2">2</button><button type="button" class="slider-btn" data-value="3">3</button><button type="button" class="slider-btn" data-value="4">4</button><button type="button" class="slider-btn" data-value="5">5</button><button type="button" class="slider-btn" data-value="6">6</button>
+                        </div>
+                        <div class="slider-anchors"><span>None</span><span>A lot</span></div>
+                    </div>
+                    <input type="hidden" id="movementInput">
+                    <div class="slider-group">
+                        <div class="slider-label"><span>Exercise</span><span class="slider-value" id="exerciseValue">-</span></div>
+                        <div class="slider-track" data-input="exerciseInput" data-display="exerciseValue">
+                            <button type="button" class="slider-btn" data-value="0">0</button><button type="button" class="slider-btn" data-value="1">1</button><button type="button" class="slider-btn" data-value="2">2</button><button type="button" class="slider-btn" data-value="3">3</button><button type="button" class="slider-btn" data-value="4">4</button><button type="button" class="slider-btn" data-value="5">5</button><button type="button" class="slider-btn" data-value="6">6</button>
+                        </div>
+                        <div class="slider-anchors"><span>None</span><span>A lot</span></div>
+                    </div>
+                    <input type="hidden" id="exerciseInput">
+                    <div class="slider-group">
+                        <div class="slider-label"><span>Computer use</span><span class="slider-value" id="cpuValue">-</span></div>
+                        <div class="slider-track" data-input="cpuInput" data-display="cpuValue">
+                            <button type="button" class="slider-btn" data-value="0">0</button><button type="button" class="slider-btn" data-value="1">1</button><button type="button" class="slider-btn" data-value="2">2</button><button type="button" class="slider-btn" data-value="3">3</button><button type="button" class="slider-btn" data-value="4">4</button><button type="button" class="slider-btn" data-value="5">5</button><button type="button" class="slider-btn" data-value="6">6</button>
+                        </div>
+                        <div class="slider-anchors"><span>None</span><span>A lot</span></div>
+                    </div>
+                    <input type="hidden" id="cpuInput">
+                    <div class="slider-group">
+                        <div class="slider-label"><span>Phone use</span><span class="slider-value" id="phoneValue">-</span></div>
+                        <div class="slider-track" data-input="phoneInput" data-display="phoneValue">
+                            <button type="button" class="slider-btn" data-value="0">0</button><button type="button" class="slider-btn" data-value="1">1</button><button type="button" class="slider-btn" data-value="2">2</button><button type="button" class="slider-btn" data-value="3">3</button><button type="button" class="slider-btn" data-value="4">4</button><button type="button" class="slider-btn" data-value="5">5</button><button type="button" class="slider-btn" data-value="6">6</button>
+                        </div>
+                        <div class="slider-anchors"><span>None</span><span>A lot</span></div>
+                    </div>
+                    <input type="hidden" id="phoneInput">
+                    <div class="slider-group">
+                        <div class="slider-label"><span>PT work</span><span class="slider-value" id="ptValue">-</span></div>
+                        <div class="slider-track" data-input="ptInput" data-display="ptValue">
+                            <button type="button" class="slider-btn" data-value="0">0</button><button type="button" class="slider-btn" data-value="1">1</button><button type="button" class="slider-btn" data-value="2">2</button><button type="button" class="slider-btn" data-value="3">3</button><button type="button" class="slider-btn" data-value="4">4</button><button type="button" class="slider-btn" data-value="5">5</button><button type="button" class="slider-btn" data-value="6">6</button>
+                        </div>
+                        <div class="slider-anchors"><span>None</span><span>A lot</span></div>
+                    </div>
+                    <input type="hidden" id="ptInput">
+                </div>
+
+                <div class="card">
+                    <div class="section-label">Diet (past 3 hours)</div>
+                    <div class="slider-group">
+                        <div class="slider-label"><span>Food amount</span><span class="slider-value" id="foodValue">-</span></div>
+                        <div class="slider-track" data-input="foodInput" data-display="foodValue">
+                            <button type="button" class="slider-btn" data-value="0">0</button><button type="button" class="slider-btn" data-value="1">1</button><button type="button" class="slider-btn" data-value="2">2</button><button type="button" class="slider-btn" data-value="3">3</button><button type="button" class="slider-btn" data-value="4">4</button><button type="button" class="slider-btn" data-value="5">5</button><button type="button" class="slider-btn" data-value="6">6</button>
+                        </div>
+                        <div class="slider-anchors"><span>None</span><span>A lot</span></div>
+                    </div>
+                    <input type="hidden" id="foodInput">
+                    <div class="slider-group">
+                        <div class="slider-label"><span>Vegetables</span><span class="slider-value" id="veggiesValue">-</span></div>
+                        <div class="slider-track" data-input="veggiesInput" data-display="veggiesValue">
+                            <button type="button" class="slider-btn" data-value="0">0</button><button type="button" class="slider-btn" data-value="1">1</button><button type="button" class="slider-btn" data-value="2">2</button><button type="button" class="slider-btn" data-value="3">3</button><button type="button" class="slider-btn" data-value="4">4</button><button type="button" class="slider-btn" data-value="5">5</button><button type="button" class="slider-btn" data-value="6">6</button>
+                        </div>
+                        <div class="slider-anchors"><span>None</span><span>A lot</span></div>
+                    </div>
+                    <input type="hidden" id="veggiesInput">
+                    <div class="slider-group">
+                        <div class="slider-label"><span>Sugar</span><span class="slider-value" id="sugarValue">-</span></div>
+                        <div class="slider-track" data-input="sugarInput" data-display="sugarValue">
+                            <button type="button" class="slider-btn" data-value="0">0</button><button type="button" class="slider-btn" data-value="1">1</button><button type="button" class="slider-btn" data-value="2">2</button><button type="button" class="slider-btn" data-value="3">3</button><button type="button" class="slider-btn" data-value="4">4</button><button type="button" class="slider-btn" data-value="5">5</button><button type="button" class="slider-btn" data-value="6">6</button>
+                        </div>
+                        <div class="slider-anchors"><span>None</span><span>A lot</span></div>
+                    </div>
+                    <input type="hidden" id="sugarInput">
+                    <div class="slider-group">
+                        <div class="slider-label"><span>Red meat</span><span class="slider-value" id="redmeatValue">-</span></div>
+                        <div class="slider-track" data-input="redmeatInput" data-display="redmeatValue">
+                            <button type="button" class="slider-btn" data-value="0">0</button><button type="button" class="slider-btn" data-value="1">1</button><button type="button" class="slider-btn" data-value="2">2</button><button type="button" class="slider-btn" data-value="3">3</button><button type="button" class="slider-btn" data-value="4">4</button><button type="button" class="slider-btn" data-value="5">5</button><button type="button" class="slider-btn" data-value="6">6</button>
+                        </div>
+                        <div class="slider-anchors"><span>None</span><span>A lot</span></div>
+                    </div>
+                    <input type="hidden" id="redmeatInput">
+                    <div class="slider-group">
+                        <div class="slider-label"><span>White meat</span><span class="slider-value" id="whitemeatValue">-</span></div>
+                        <div class="slider-track" data-input="whitemeatInput" data-display="whitemeatValue">
+                            <button type="button" class="slider-btn" data-value="0">0</button><button type="button" class="slider-btn" data-value="1">1</button><button type="button" class="slider-btn" data-value="2">2</button><button type="button" class="slider-btn" data-value="3">3</button><button type="button" class="slider-btn" data-value="4">4</button><button type="button" class="slider-btn" data-value="5">5</button><button type="button" class="slider-btn" data-value="6">6</button>
+                        </div>
+                        <div class="slider-anchors"><span>None</span><span>A lot</span></div>
+                    </div>
+                    <input type="hidden" id="whitemeatInput">
+                    <div class="slider-group">
+                        <div class="slider-label"><span>Alcohol</span><span class="slider-value" id="alcoholValue">-</span></div>
+                        <div class="slider-track" data-input="alcoholInput" data-display="alcoholValue">
+                            <button type="button" class="slider-btn" data-value="0">0</button><button type="button" class="slider-btn" data-value="1">1</button><button type="button" class="slider-btn" data-value="2">2</button><button type="button" class="slider-btn" data-value="3">3</button><button type="button" class="slider-btn" data-value="4">4</button><button type="button" class="slider-btn" data-value="5">5</button><button type="button" class="slider-btn" data-value="6">6</button>
+                        </div>
+                        <div class="slider-anchors"><span>None</span><span>A lot</span></div>
+                    </div>
+                    <input type="hidden" id="alcoholInput">
+                </div>
+
+                <div class="card">
+                    <div class="section-label">Medication (past 3 hours)</div>
+                    <div class="checkbox-grid">
+                        <div class="checkbox-item"><input type="checkbox" id="med_advil"><label for="med_advil">Advil</label></div>
+                        <div class="checkbox-item"><input type="checkbox" id="med_tylenol"><label for="med_tylenol">Tylenol</label></div>
+                        <div class="checkbox-item"><input type="checkbox" id="med_arnica"><label for="med_arnica">Arnica</label></div>
+                        <div class="checkbox-item"><input type="checkbox" id="med_camphor"><label for="med_camphor">Camphor</label></div>
+                        <div class="checkbox-item"><input type="checkbox" id="med_tums"><label for="med_tums">Tums</label></div>
+                        <div class="checkbox-item"><input type="checkbox" id="med_nauzene"><label for="med_nauzene">Nauzene</label></div>
+                        <div class="checkbox-item"><input type="checkbox" id="med_ritalin"><label for="med_ritalin">Ritalin</label></div>
+                        <div class="checkbox-item"><input type="checkbox" id="med_cannabis_smoke"><label for="med_cannabis_smoke">Cannabis (smoked)</label></div>
+                        <div class="checkbox-item"><input type="checkbox" id="med_cannabis_edible"><label for="med_cannabis_edible">Cannabis (edible)</label></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <textarea class="comments-input" id="commentsInput" placeholder="Comments..."></textarea>
+                </div>
+
+                <button type="submit" class="submit-btn" id="mainSubmitBtn">Save Check-in</button>
+            </form>
+        </section>
+
+        <!-- Morning Section -->
+        <section id="morning" class="section">
+            <form id="morningForm">
+                <div class="card">
+                    <div class="slider-group">
+                        <div class="slider-label"><span>Sleep quality *</span><span class="slider-value" id="sleepValue">-</span></div>
+                        <div class="slider-track" data-input="sleepInput" data-display="sleepValue">
+                            <button type="button" class="slider-btn" data-value="0">0</button><button type="button" class="slider-btn" data-value="1">1</button><button type="button" class="slider-btn" data-value="2">2</button><button type="button" class="slider-btn" data-value="3">3</button><button type="button" class="slider-btn" data-value="4">4</button><button type="button" class="slider-btn" data-value="5">5</button><button type="button" class="slider-btn" data-value="6">6</button>
+                        </div>
+                        <div class="slider-anchors"><span>Very poor</span><span>Excellent</span></div>
+                    </div>
+                    <input type="hidden" id="sleepInput">
+
+                    <div class="slider-group">
+                        <div class="slider-label"><span>Pain level *</span><span class="slider-value" id="morningPainValue">-</span></div>
+                        <div class="slider-track" data-input="morningPainInput" data-display="morningPainValue">
+                            <button type="button" class="slider-btn" data-value="0">0</button><button type="button" class="slider-btn" data-value="1">1</button><button type="button" class="slider-btn" data-value="2">2</button><button type="button" class="slider-btn" data-value="3">3</button><button type="button" class="slider-btn" data-value="4">4</button><button type="button" class="slider-btn" data-value="5">5</button><button type="button" class="slider-btn" data-value="6">6</button>
+                        </div>
+                        <div class="slider-anchors"><span>None</span><span>Severe</span></div>
+                    </div>
+                    <input type="hidden" id="morningPainInput">
+
+                    <div class="slider-group">
+                        <div class="slider-label"><span>Mood *</span><span class="slider-value" id="morningMoodValue">-</span></div>
+                        <div class="slider-track" data-input="morningMoodInput" data-display="morningMoodValue">
+                            <button type="button" class="slider-btn" data-value="0">0</button><button type="button" class="slider-btn" data-value="1">1</button><button type="button" class="slider-btn" data-value="2">2</button><button type="button" class="slider-btn" data-value="3">3</button><button type="button" class="slider-btn" data-value="4">4</button><button type="button" class="slider-btn" data-value="5">5</button><button type="button" class="slider-btn" data-value="6">6</button>
+                        </div>
+                        <div class="slider-anchors"><span>Very low</span><span>Very high</span></div>
+                    </div>
+                    <input type="hidden" id="morningMoodInput">
+                </div>
+                <button type="submit" class="submit-btn" id="morningSubmitBtn">Save Morning Check-in</button>
+            </form>
+        </section>
+
+        <!-- Data Section -->
+        <section id="data" class="section">
+            <div class="data-stats">
+                <div class="stat-card">
+                    <div class="stat-value" id="totalEntries">0</div>
+                    <div class="stat-label">Total Entries</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="avgPain">-</div>
+                    <div class="stat-label">Avg Pain</div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="entries-list" id="entriesList">
+                    <div class="empty-state">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                        </svg>
+                        <p>No entries yet.<br>Data syncs from Google Sheets.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const SHEET_URL = 'https://script.google.com/macros/s/AKfycby7NgCILm8fjg12GwuIU3aBGHy-eJMT1tpYGUUIMeUk5KIjQivtYknBJlo41Y1GGzin_g/exec';
+
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast ' + type;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        function updateSyncStatus(connected) {
+            const dot = document.getElementById('syncDot');
+            const text = document.getElementById('syncText');
+            dot.classList.remove('checking', 'connected', 'disconnected');
+            if (connected) {
+                dot.classList.add('connected');
+                text.textContent = 'Connected';
+            } else {
+                dot.classList.add('disconnected');
+                text.textContent = 'Offline';
+            }
+        }
+
+        async function checkConnection() {
+            try {
+                const response = await fetch(SHEET_URL);
+                updateSyncStatus(response.ok);
+                if (response.ok) loadDataFromSheet();
+            } catch (e) {
+                updateSyncStatus(false);
+            }
+        }
+
+        async function sendToSheet(data) {
+            try {
+                await fetch(SHEET_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                return true;
+            } catch (e) {
+                console.error('Error:', e);
+                return false;
+            }
+        }
+
+        async function loadDataFromSheet() {
+            try {
+                const response = await fetch(SHEET_URL);
+                const result = await response.json();
+                if (result.success && result.data) updateDataView(result.data);
+            } catch (e) {
+                console.error('Error loading:', e);
+            }
+        }
+
+        // Tab navigation
+        document.querySelectorAll('.nav-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.tab).classList.add('active');
+                if (tab.dataset.tab === 'data') loadDataFromSheet();
+            });
+        });
+
+        // Slider functionality
+        document.querySelectorAll('.slider-track').forEach(track => {
+            const inputId = track.dataset.input;
+            const displayId = track.dataset.display;
+            if (!inputId || !displayId) return;
+            track.querySelectorAll('.slider-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    track.querySelectorAll('.slider-btn').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                    document.getElementById(displayId).textContent = btn.dataset.value;
+                    document.getElementById(inputId).value = btn.dataset.value;
+                });
+            });
+        });
+
+        // Main form
+        document.getElementById('mainForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const pain = document.getElementById('painInput').value;
+            const mood = document.getElementById('moodInput').value;
+            if (!pain || !mood) {
+                showToast('Please fill in Pain and Mood', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('mainSubmitBtn');
+            btn.disabled = true;
+            btn.textContent = 'Saving...';
+
+            const entry = {
+                timestamp: new Date().toISOString(),
+                type: 'checkin',
+                pain, mood,
+                bloated: document.getElementById('bloatedInput').value || '',
+                gassy: document.getElementById('gassyInput').value || '',
+                dyspepsia: document.getElementById('dyspepsiaInput').value || '',
+                stress: document.getElementById('stressInput').value || '',
+                loc_head_l: document.getElementById('loc_head_l').checked ? 1 : 0,
+                loc_head_c: document.getElementById('loc_head_c').checked ? 1 : 0,
+                loc_head_r: document.getElementById('loc_head_r').checked ? 1 : 0,
+                loc_neck_l: document.getElementById('loc_neck_l').checked ? 1 : 0,
+                loc_neck_c: document.getElementById('loc_neck_c').checked ? 1 : 0,
+                loc_neck_r: document.getElementById('loc_neck_r').checked ? 1 : 0,
+                loc_upperback_l: document.getElementById('loc_upperback_l').checked ? 1 : 0,
+                loc_upperback_c: document.getElementById('loc_upperback_c').checked ? 1 : 0,
+                loc_upperback_r: document.getElementById('loc_upperback_r').checked ? 1 : 0,
+                loc_lowerback_l: document.getElementById('loc_lowerback_l').checked ? 1 : 0,
+                loc_lowerback_c: document.getElementById('loc_lowerback_c').checked ? 1 : 0,
+                loc_lowerback_r: document.getElementById('loc_lowerback_r').checked ? 1 : 0,
+                loc_shoulder_l: document.getElementById('loc_shoulder_l').checked ? 1 : 0,
+                loc_shoulder_c: document.getElementById('loc_shoulder_c').checked ? 1 : 0,
+                loc_shoulder_r: document.getElementById('loc_shoulder_r').checked ? 1 : 0,
+                loc_hand_l: document.getElementById('loc_hand_l').checked ? 1 : 0,
+                loc_hand_c: document.getElementById('loc_hand_c').checked ? 1 : 0,
+                loc_hand_r: document.getElementById('loc_hand_r').checked ? 1 : 0,
+                standing: document.getElementById('standingInput').value || '',
+                sitting: document.getElementById('sittingInput').value || '',
+                movement: document.getElementById('movementInput').value || '',
+                exercise: document.getElementById('exerciseInput').value || '',
+                cpu_use: document.getElementById('cpuInput').value || '',
+                phone_use: document.getElementById('phoneInput').value || '',
+                pt_work: document.getElementById('ptInput').value || '',
+                food_amount: document.getElementById('foodInput').value || '',
+                vegetables: document.getElementById('veggiesInput').value || '',
+                sugar: document.getElementById('sugarInput').value || '',
+                red_meat: document.getElementById('redmeatInput').value || '',
+                white_meat: document.getElementById('whitemeatInput').value || '',
+                alcohol: document.getElementById('alcoholInput').value || '',
+                med_advil: document.getElementById('med_advil').checked ? 1 : 0,
+                med_tylenol: document.getElementById('med_tylenol').checked ? 1 : 0,
+                med_arnica: document.getElementById('med_arnica').checked ? 1 : 0,
+                med_camphor: document.getElementById('med_camphor').checked ? 1 : 0,
+                med_tums: document.getElementById('med_tums').checked ? 1 : 0,
+                med_nauzene: document.getElementById('med_nauzene').checked ? 1 : 0,
+                med_ritalin: document.getElementById('med_ritalin').checked ? 1 : 0,
+                med_cannabis_smoke: document.getElementById('med_cannabis_smoke').checked ? 1 : 0,
+                med_cannabis_edible: document.getElementById('med_cannabis_edible').checked ? 1 : 0,
+                comments: document.getElementById('commentsInput').value || ''
+            };
+
+            const success = await sendToSheet(entry);
+            btn.disabled = false;
+            btn.textContent = 'Save Check-in';
+            if (success) {
+                showToast('Saved to Google Sheets!');
+                resetForm('mainForm');
+            } else {
+                showToast('Failed to save', 'error');
+            }
+        });
+
+        // Morning form
+        document.getElementById('morningForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const sleep = document.getElementById('sleepInput').value;
+            const pain = document.getElementById('morningPainInput').value;
+            const mood = document.getElementById('morningMoodInput').value;
+            if (!sleep || !pain || !mood) {
+                showToast('Please fill all fields', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('morningSubmitBtn');
+            btn.disabled = true;
+            btn.textContent = 'Saving...';
+
+            const entry = {
+                timestamp: new Date().toISOString(),
+                type: 'morning',
+                sleep_quality: sleep,
+                pain, mood
+            };
+
+            const success = await sendToSheet(entry);
+            btn.disabled = false;
+            btn.textContent = 'Save Morning Check-in';
+            if (success) {
+                showToast('Morning check-in saved!');
+                resetForm('morningForm');
+            } else {
+                showToast('Failed to save', 'error');
+            }
+        });
+
+        function resetForm(formId) {
+            const form = document.getElementById(formId);
+            form.reset();
+            form.querySelectorAll('.slider-btn').forEach(btn => btn.classList.remove('selected'));
+            form.querySelectorAll('.slider-value').forEach(val => val.textContent = '-');
+            form.querySelectorAll('input[type="hidden"]').forEach(input => input.value = '');
+        }
+
+        function updateDataView(entries) {
+            document.getElementById('totalEntries').textContent = entries.length;
+            if (entries.length > 0) {
+                const painVals = entries.filter(e => e.pain).map(e => parseInt(e.pain));
+                const avg = painVals.length ? (painVals.reduce((a,b) => a+b, 0) / painVals.length).toFixed(1) : '-';
+                document.getElementById('avgPain').textContent = avg;
+
+                document.getElementById('entriesList').innerHTML = entries.slice(-20).reverse().map(entry => {
+                    const d = new Date(entry.timestamp);
+                    const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+                    const pc = entry.pain <= 2 ? 'pain-low' : entry.pain <= 4 ? 'pain-mid' : 'pain-high';
+                    let det = [];
+                    if (entry.mood) det.push('Mood: ' + entry.mood);
+                    if (entry.sleep_quality) det.push('Sleep: ' + entry.sleep_quality);
+                    if (entry.comments) det.push(entry.comments);
+                    return `<div class="entry-item"><div class="entry-header"><span class="entry-date">${dateStr}</span><span class="entry-type">${entry.type||'checkin'}</span></div><div class="entry-pain"><span class="entry-pain-value ${pc}">${entry.pain}</span><span class="entry-pain-label">pain</span></div>${det.length ? `<div class="entry-details">${det.join(' • ')}</div>` : ''}</div>`;
+                }).join('');
+            } else {
+                document.getElementById('avgPain').textContent = '-';
+                document.getElementById('entriesList').innerHTML = '<div class="empty-state"><p>No entries yet</p></div>';
+            }
+        }
+
+        document.getElementById('currentDate').textContent = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+        checkConnection();
+    </script>
+</body>
+</html>
